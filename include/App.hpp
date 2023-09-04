@@ -8,27 +8,31 @@
 #include <OpenGLApp/Program.hpp>
 #include <OpenGLApp/Camera.hpp>
 
-#include "SimulationView.hpp"
-
-template <std::size_t N>
-using SplitRegion = std::array<std::unique_ptr<SimulationView>, N>;
-
-using FullRegion = SplitRegion<1>;
-using HalfSplitRegion = SplitRegion<2>;
-using QuarterSplitRegion = SplitRegion<4>;
+#include "SimulationGridView.hpp"
+#include "Dialogs/NewSimulationDialog.hpp"
 
 class App : public OpenGL::Window{
 private:
-    std::optional<glm::vec2> previous_mouse_position;
-    const struct{
-        float scroll_sensitivity = 0.1f;
-        float pan_sensitivity = 3e-3f;
-        float speed = 2.5f;
-    } camera_properties;
+    static constexpr glm::uvec2 initial_window_size { 1280, 720 };
 
-    std::variant<FullRegion, HalfSplitRegion, QuarterSplitRegion> regions;
+    // OpenGL properties.
     OpenGL::Camera camera;
     OpenGL::Program pointcloud_program;
+
+    // Simulation properties.
+    SimulationGridView simulation_grid;
+    bool is_running = false;
+    std::optional<float> time_step = std::nullopt; // nullopt -> render loop time step, otherwise -> fixed time step.
+
+    // Controlling properties.
+    std::optional<glm::vec2> previous_mouse_position;
+    struct{
+        float scroll_sensitivity = 0.1f;
+        float pan_sensitivity = 3e-3f;
+    } controlling_properties;
+
+    // ImGui controls.
+    Dialog::NewSimulationDialog new_simulation_dialog;
 
     void onFramebufferSizeChanged(int width, int height) override;
     void onScrollChanged(double xoffset, double yoffset) override;

@@ -4,26 +4,30 @@
 
 #include "BodyPreset.hpp"
 
-#include <random>
 #include <algorithm>
 
 #include <glm/gtc/constants.hpp>
-#include <glm/gtc/random.hpp>
 
 namespace{
-    struct GalaxyDistribution{
-        NBodyExecutor::Body operator()(auto &gen) const{
-            std::uniform_real_distribution<float> uniform_dis { 0.f, 1.f };
-            std::normal_distribution<float> normal_dis { 0.f, 1e-2f };
+    struct BallDistribution{
+        std::uniform_real_distribution<float> dis { 0.f, 1.f };
 
+        glm::vec3 operator()(auto &gen){
+            const float longitude = std::lerp(0.f, glm::two_pi<float>(), dis(gen));
+            const float latitude = std::lerp(-glm::half_pi<float>(), glm::half_pi<float>(), dis(gen));
+            return { std::cos(latitude) * std::cos(longitude), std::cos(latitude) * std::sin(longitude), std::sin(longitude) };
+        }
+    };
+
+    struct NoiseDisk{
+        std::uniform_real_distribution<float> uniform_dis { 0.f, 1.f };
+        std::normal_distribution<float> normal_dis { 0.f, 1e-2f };
+
+        glm::vec3 operator()(auto &gen){
             const float radius = uniform_dis(gen);
-            const float longitude = glm::two_pi<float>() * uniform_dis(gen);
+            const float angle = glm::two_pi<float>() * uniform_dis(gen);
             const glm::vec3 noise { normal_dis(gen), 4.f * normal_dis(gen), normal_dis(gen) };
-            const glm::vec3 position = radius * glm::vec3(std::cos(longitude), 0.f, std::sin(longitude)) + noise;
-
-            const glm::vec3 velocity = 0.2f * glm::vec3(position.z, normal_dis(gen), -position.x);
-
-            return { std::lerp(0.8f, 1.2f, uniform_dis(gen)), position, velocity };
+            return { radius * glm::vec3(std::cos(angle), 0.f, std::sin(angle)) + noise };
         }
     };
 
@@ -37,17 +41,23 @@ namespace{
     }
 };
 
-std::vector<NBodyExecutor::Body> BodyPreset::galaxy(std::size_t num_bodies) {
-    static std::random_device rd;
-    static std::mt19937 gen { rd() };
-    const GalaxyDistribution dis;
+std::vector<NBodyExecutor::Body> BodyPreset::galaxy(std::size_t num_bodies, unsigned int seed) {
+    static NoiseDisk dis;
 
-    return generate_n(num_bodies, [&] { return dis(gen); });
+    std::mt19937 gen { seed };
+    return generate_n(num_bodies, [&]() -> NBodyExecutor::Body {
+        const glm::vec3 position = dis(gen);
+        const glm::vec3 velocity = 0.2f * glm::vec3(position.z, dis.normal_dis(gen), -position.x);
+        return { 1.f, position, velocity };
+    });
 }
 
-std::vector<NBodyExecutor::Body> BodyPreset::explosion(std::size_t num_bodies) {
-    return generate_n(num_bodies, []{
-        glm::vec3 position = glm::ballRand(0.1f);
+std::vector<NBodyExecutor::Body> BodyPreset::explosion(std::size_t num_bodies, unsigned int seed) {
+    static BallDistribution dis;
+
+    std::mt19937 gen { seed };
+    return generate_n(num_bodies, [&]() -> NBodyExecutor::Body {
+        const glm::vec3 position = dis(gen);
         return NBodyExecutor::Body { 1.f, position, 0.1f * position };
     });
 }

@@ -19,18 +19,18 @@ FetchContent_MakeAvailable(OpenGLApp)
 
 find_package(imgui REQUIRED)
 find_package(fmt REQUIRED)
-
-set(CMAKE_CXX_STANDARD 20)
+find_package(range-v3 REQUIRED)
 
 add_executable(NBody main.cpp
         src/App.cpp
-        include/App.hpp
         src/SimulationView.cpp
-        include/SimulationView.hpp
         src/BodyPreset.cpp
-        include/BodyPreset.hpp)
+        src/SimulationGridView.cpp
+        src/Dialogs/NewSimulationDialog.cpp
+)
+target_compile_features(NBody PRIVATE cxx_std_20)
 target_include_directories(NBody PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(NBody PRIVATE NBodyExecutor OpenGLApp imgui::imgui fmt::fmt)
+target_link_libraries(NBody PRIVATE NBodyExecutor OpenGLApp imgui::imgui fmt::fmt range-v3::range-v3)
 
 # Copy shader files to executable folder.
 add_custom_target(copy_shaders COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_LIST_DIR}/copy_shaders.cmake)

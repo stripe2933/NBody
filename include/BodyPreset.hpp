@@ -5,10 +5,13 @@
 #pragma once
 
 #include <vector>
+#include <random>
 
 #include <NBodyExecutor/Body.hpp>
 
 namespace BodyPreset{
-    std::vector<NBodyExecutor::Body> galaxy(std::size_t num_bodies);
-    std::vector<NBodyExecutor::Body> explosion(std::size_t num_bodies);
+    static std::random_device rd;
+
+    std::vector<NBodyExecutor::Body> galaxy(std::size_t num_bodies, unsigned int seed = rd());
+    std::vector<NBodyExecutor::Body> explosion(std::size_t num_bodies, unsigned int seed = rd());
 };

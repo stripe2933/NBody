@@ -6,8 +6,8 @@
 
 #include <glm/gtc/constants.hpp>
 
-SimulationView::SimulationView(std::vector<NBodyExecutor::Body> &&bodies, std::unique_ptr<NBodyExecutor::Executor> executor)
-        : bodies { std::move(bodies) }, executor { std::move(executor) }
+SimulationView::SimulationView(std::string name, std::vector<NBodyExecutor::Body> bodies, std::unique_ptr<NBodyExecutor::Executor> executor)
+        : name { std::move(name) }, bodies { std::move(bodies) }, executor { std::move(executor) }
 {
     glGenVertexArrays(1, &pointcloud.vao);
     glBindVertexArray(pointcloud.vao);
@@ -29,10 +29,6 @@ SimulationView::~SimulationView() noexcept {
     glDeleteVertexArrays(1, &pointcloud.vao);
 }
 
-void SimulationView::updateImGui() {
-
-}
-
 void SimulationView::update(float time_delta) {
     // Reset each body's acceleration to zero before n-body execution.
     std::ranges::for_each(bodies, [](NBodyExecutor::Body &body) { body.acceleration = glm::zero<glm::vec3>(); });
@@ -40,9 +36,11 @@ void SimulationView::update(float time_delta) {
 
     // Copy data in bodies to GPU. Since allocated data size in GPU is equal to bodies, use glBufferSubData rather
     // than glBufferData.
+    glBindBuffer(GL_ARRAY_BUFFER, pointcloud.vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(bodies.size() * sizeof(NBodyExecutor::Body)), bodies.data());
 }
 
 void SimulationView::draw() const{
+    glBindVertexArray(pointcloud.vao);
     glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(bodies.size()));
 }
