@@ -8,6 +8,8 @@
 #include <range/v3/view/move.hpp>
 #include <range/v3/range/conversion.hpp>
 
+#include "Utils/VisitorHelper.hpp"
+
 std::span<std::unique_ptr<SimulationView>> SimulationGridView::simulations() noexcept{
     return std::visit([](auto &x) -> std::span<std::unique_ptr<SimulationView>> {
         return { x.children.data(), x.children.size() };
@@ -39,27 +41,28 @@ void SimulationGridView::add(std::unique_ptr<SimulationView> &&simulation_view) 
      *    simulation (which means 4 simulations are fully presented), then throw std::out_of_range exception.
      */
 
-    if (auto *no_split = std::get_if<NoSplitGrid>(&split_grid)){
-        if (auto &[child] = no_split->children; child){
-            split_grid = HorizontalSplitGrid { std::move(child), std::move(simulation_view) };
-        }
-        else{
-            child = std::move(simulation_view);
-        }
-    }
-    else if (auto *horizontal_split = std::get_if<HorizontalSplitGrid>(&split_grid)){
-        auto &[left, right] = horizontal_split->children;
-        split_grid = QuadrantSplitGrid { std::move(left), std::move(right), std::move(simulation_view), nullptr };
-    }
-    else{
-        auto &quadrant_split = std::get<QuadrantSplitGrid>(split_grid);
-        const auto insert_position = std::find(quadrant_split.children.begin(), quadrant_split.children.end(), nullptr);
-        if (insert_position == quadrant_split.children.cend()){
-            throw std::out_of_range { "No available space to add simulation view." };
-        }
+    std::visit(Utils::overload {
+        [&](NoSplitGrid &no_split){
+            if (auto &[child] = no_split.children; child){
+                split_grid = HorizontalSplitGrid { std::move(child), std::move(simulation_view) };
+            }
+            else{
+                child = std::move(simulation_view);
+            }
+        },
+        [&](HorizontalSplitGrid &horizontal_split){
+            auto &[left, right] = horizontal_split.children;
+            split_grid = QuadrantSplitGrid { std::move(left), std::move(right), std::move(simulation_view), nullptr };
+        },
+        [&](QuadrantSplitGrid &quadrant_split){
+            const auto insert_position = std::find(quadrant_split.children.begin(), quadrant_split.children.end(), nullptr);
+            if (insert_position == quadrant_split.children.cend()){
+                throw std::out_of_range { "No available space to add simulation view." };
+            }
 
-        *insert_position = std::move(simulation_view);
-    }
+            *insert_position = std::move(simulation_view);
+        }
+    }, split_grid);
 }
 
 void SimulationGridView::removeAt(std::size_t idx) {
@@ -78,61 +81,64 @@ void SimulationGridView::removeAt(std::size_t idx) {
      *      - If there are three simulations, then do nothing.
      */
 
-    if (auto *no_split = std::get_if<NoSplitGrid>(&split_grid)){
-        if (idx == 0){
-            if (auto &[child] = no_split->children; child){
-                child.reset();
-            }
-            else{
-                throw std::invalid_argument { "Given simulation is already empty." };
-            }
-        }
-        else{
-            throw std::out_of_range { "Index must be zero." };
-        }
-    }
-    else if (auto *horizontal_split = std::get_if<HorizontalSplitGrid>(&split_grid)){
-        auto &[left, right] = horizontal_split->children;
-        if (idx == 0){
-            split_grid = NoSplitGrid { std::move(right) };
-        }
-        else if (idx == 1){
-            split_grid = NoSplitGrid { std::move(left) };
-        }
-        else{
-            throw std::out_of_range { "Index must be zero or one." };
-        }
-    }
-    else{
-        auto &quadrant_split = std::get<QuadrantSplitGrid>(split_grid);
-        const std::size_t notnull_simulation_count = notNullSimulationCount();
+    std::visit(Utils::overload {
+            [&](NoSplitGrid &no_split){
+                if (idx == 0){
+                    if (auto &[child] = no_split.children; child){
+                        child.reset();
+                    }
+                    else{
+                        throw std::invalid_argument { "Given simulation is already empty." };
+                    }
+                }
+                else{
+                    throw std::out_of_range { "Index must be zero." };
+                }
+            },
+            [&](HorizontalSplitGrid &horizontal_split){
+                auto &[left, right] = horizontal_split.children;
+                if (idx == 0){
+                    split_grid = NoSplitGrid { std::move(right) };
+                }
+                else if (idx == 1){
+                    split_grid = NoSplitGrid { std::move(left) };
+                }
+                else{
+                    throw std::out_of_range { "Index must be zero or one." };
+                }
 
-        if (notnull_simulation_count == 3){
-            if (quadrant_split.children[idx]){
-                quadrant_split.children[idx].reset();
+            },
+            [&](QuadrantSplitGrid &quadrant_split){
+                const std::size_t notnull_simulation_count = notNullSimulationCount();
 
-                auto notnull_simulations_vec = quadrant_split.children
-                        | ranges::views::filter([](const auto &x) { return x != nullptr; })
-                        | ranges::views::move
-                        | ranges::to_vector;
-                split_grid = HorizontalSplitGrid { std::move(notnull_simulations_vec[0]), std::move(notnull_simulations_vec[1]) };
+                if (notnull_simulation_count == 3){
+                    if (quadrant_split.children[idx]){
+                        quadrant_split.children[idx].reset();
+
+                        auto notnull_simulations_vec = quadrant_split.children
+                                                       | ranges::views::filter([](const auto &x) { return x != nullptr; })
+                                                       | ranges::views::move
+                                                       | ranges::to_vector;
+                        split_grid = HorizontalSplitGrid { std::move(notnull_simulations_vec[0]), std::move(notnull_simulations_vec[1]) };
+                    }
+                    else{
+                        throw std::invalid_argument { "Given simulation is already empty." };
+                    }
+                }
+                else if (notnull_simulation_count == 4){
+                    if (quadrant_split.children[idx]){
+                        quadrant_split.children[idx].reset();
+                    }
+                    else{
+                        throw std::invalid_argument { "Given simulation is already empty." };
+                    }
+                }
+                else{
+                    assert(false); // should not reach to here.
+                }
+
             }
-            else{
-                throw std::invalid_argument { "Given simulation is already empty." };
-            }
-        }
-        else if (notnull_simulation_count == 4){
-            if (quadrant_split.children[idx]){
-                quadrant_split.children[idx].reset();
-            }
-            else{
-                throw std::invalid_argument { "Given simulation is already empty." };
-            }
-        }
-        else{
-            assert(false); // should not reach to here.
-        }
-    }
+    }, split_grid);
 }
 
 void SimulationGridView::swap(std::size_t idx1, std::size_t idx2) {
@@ -152,38 +158,40 @@ void SimulationGridView::update(float time_delta) {
 }
 
 void SimulationGridView::draw() const {
-    if (auto *no_split = std::get_if<NoSplitGrid>(&split_grid)){
-        if (const auto &[child] = no_split->children; child){
-            glViewport(position.x, position.y, size.x, size.y);
-            child->draw();
+    std::visit(Utils::overload {
+        [&](const NoSplitGrid &no_split){
+            if (const auto &[child] = no_split.children; child){
+                glViewport(position.x, position.y, size.x, size.y);
+                child->draw();
+            }
+        },
+        [&](const HorizontalSplitGrid &horizontal_split){
+            const auto &[left, right] = horizontal_split.children;
+            glViewport(position.x, position.y, size.x / 2, size.y);
+            left->draw();
+            glViewport(position.x + size.x / 2, position.y, size.x / 2, size.y);
+            right->draw();
+        },
+        [&](const QuadrantSplitGrid &quadrant_split){
+            const auto &[top_left, top_right, bottom_left, bottom_right] = std::get<QuadrantSplitGrid>(split_grid).children;
+            if (top_left){
+                glViewport(position.x, position.y + size.y / 2, size.x / 2, size.y / 2);
+                top_left->draw();
+            }
+            if (top_right){
+                glViewport(position.x + size.x / 2, position.y + size.y / 2, size.x / 2, size.y / 2);
+                top_right->draw();
+            }
+            if (bottom_left){
+                glViewport(position.x, position.y, size.x / 2, size.y / 2);
+                bottom_left->draw();
+            }
+            if (bottom_right){
+                glViewport(position.x + size.x / 2, position.y, size.x / 2, size.y / 2);
+                bottom_right->draw();
+            }
         }
-    }
-    else if (auto *horizontal_split = std::get_if<HorizontalSplitGrid>(&split_grid)){
-        const auto &[left, right] = horizontal_split->children;
-        glViewport(position.x, position.y, size.x / 2, size.y);
-        left->draw();
-        glViewport(position.x + size.x / 2, position.y, size.x / 2, size.y);
-        right->draw();
-    }
-    else{
-        const auto &[top_left, top_right, bottom_left, bottom_right] = std::get<QuadrantSplitGrid>(split_grid).children;
-        if (top_left){
-            glViewport(position.x, position.y + size.y / 2, size.x / 2, size.y / 2);
-            top_left->draw();
-        }
-        if (top_right){
-            glViewport(position.x + size.x / 2, position.y + size.y / 2, size.x / 2, size.y / 2);
-            top_right->draw();
-        }
-        if (bottom_left){
-            glViewport(position.x, position.y, size.x / 2, size.y / 2);
-            bottom_left->draw();
-        }
-        if (bottom_right){
-            glViewport(position.x + size.x / 2, position.y, size.x / 2, size.y / 2);
-            bottom_right->draw();
-        }
-    }
+    }, split_grid);
 }
 
 SimulationGridView::SplitMethod SimulationGridView::getSplitMethod() const noexcept {
@@ -222,6 +230,4 @@ SimulationGridView::SimulationGridView(glm::vec<2, GLint> position, glm::vec<2, 
         case SplitMethod::HorizontalSplit:
             return static_cast<float>(size.x) / static_cast<float>(size.y) / 2.f;
     }
-
-    assert(false); // Unreachable.
 }
