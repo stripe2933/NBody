@@ -15,7 +15,7 @@ namespace{
         glm::vec3 operator()(auto &gen){
             const float longitude = std::lerp(0.f, glm::two_pi<float>(), dis(gen));
             const float latitude = std::lerp(-glm::half_pi<float>(), glm::half_pi<float>(), dis(gen));
-            return { std::cos(latitude) * std::cos(longitude), std::cos(latitude) * std::sin(longitude), std::sin(longitude) };
+            return { std::cos(latitude) * std::cos(longitude), std::cos(latitude) * std::sin(longitude), std::sin(latitude) };
         }
     };
 
