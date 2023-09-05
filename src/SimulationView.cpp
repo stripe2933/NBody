@@ -21,7 +21,7 @@ SimulationView::SimulationView(std::string name, std::vector<NBodyExecutor::Body
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(NBodyExecutor::Body), reinterpret_cast<GLint*>(offsetof(NBodyExecutor::Body, position)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(NBodyExecutor::Body), reinterpret_cast<GLint*>(offsetof(NBodyExecutor::Body, velocity)));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(NBodyExecutor::Body), reinterpret_cast<GLint*>(offsetof(NBodyExecutor::Body, velocity)));
 }
 
 SimulationView::~SimulationView() noexcept {
