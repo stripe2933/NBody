@@ -4,47 +4,48 @@
 
 #pragma once
 
-#include <unordered_map>
-
 #include "Dialog.hpp"
 #include "SimulationView.hpp"
+
+namespace NewSimulationDialogOption{
+    namespace Executor{
+        struct Naive { int num_threads; };
+        struct BarnesHut { int num_threads; };
+
+        using Type = std::variant<Naive, BarnesHut>;
+    };
+
+    namespace BodyPreset{
+        struct Galaxy { int num_bodies; };
+        struct Explosion { int num_bodies; };
+
+        using Type = std::variant<std::monostate, Galaxy, Explosion>;
+    };
+
+    namespace Seed{
+        struct Fixed { int seed; };
+        struct Random { };
+
+        using Type = std::variant<Fixed, Random>;
+    };
+};
 
 namespace Dialog{
     class NewSimulationDialog : public Dialog<std::unique_ptr<SimulationView>>{
     private:
-        enum class ExecutorType{
-            Unset,
-            Naive,
-            BarnesHut,
-        };
-
-        enum class BodyPresetType{
-            Unset,
-            Galaxy,
-            Explosion,
-        };
-
-        enum class SeedType{
-            FixedSeed = 0,
-            RandomSeed = 1
-        };
-
         static int unnamed_index;
 
-        std::string simulation_name;
+        struct Options{
+            std::string name;
 
-        ExecutorType executor_type = ExecutorType::Unset;
-        int num_threads = 1;
+            NewSimulationDialogOption::Executor::Type executor = NewSimulationDialogOption::Executor::Naive { .num_threads = 4 };
+            NewSimulationDialogOption::BodyPreset::Type body_preset;
+            NewSimulationDialogOption::Seed::Type seed = NewSimulationDialogOption::Seed::Random{};
+        } options;
 
-        BodyPresetType body_preset = BodyPresetType::Unset;
-        int num_bodies = 256;
-        SeedType seed_type = SeedType::FixedSeed;
-        unsigned seed = 0;
-
-        static const std::unordered_map<ExecutorType, const char*> executor_type_name;
-        static const std::unordered_map<BodyPresetType, const char*> body_preset_name;
+        std::unique_ptr<SimulationView> constructSimulationView();
 
     public:
-        std::optional<std::unique_ptr<SimulationView>> open(const char *title) override;
+        std::optional<result_t> open(const char *title) override;
     };
 };

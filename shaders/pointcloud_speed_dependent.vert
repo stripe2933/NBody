@@ -6,9 +6,15 @@ layout(location = 2) in vec3 aVelocity;
 
 out vec3 color;
 
-uniform mat4 projection_view;
-uniform float mass_factor;
-uniform float mass_constant;
+layout (std140) uniform ProjectionView{
+    mat4 projection_view;
+};
+
+layout (std140) uniform PointSize{
+    float mass_factor;
+    float mass_constant;
+};
+
 uniform float speed_low;
 uniform float speed_high;
 uniform vec3 color_low;

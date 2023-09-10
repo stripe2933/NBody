@@ -13,7 +13,7 @@ FetchContent_MakeAvailable(NBodyExecutor)
 FetchContent_Declare(
     OpenGLApp
     GIT_REPOSITORY https://github.com/stripe2933/OpenGLApp.git
-    GIT_TAG main
+    GIT_TAG 6e64ccd
 )
 FetchContent_MakeAvailable(OpenGLApp)
 
@@ -27,6 +27,8 @@ add_executable(NBody main.cpp
         src/BodyPreset.cpp
         src/SimulationGridView.cpp
         src/Dialogs/NewSimulationDialog.cpp
+        src/NaiveSimulationView.cpp
+        src/BarnesHutSimulationView.cpp
 )
 target_compile_features(NBody PRIVATE cxx_std_20)
 target_include_directories(NBody PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

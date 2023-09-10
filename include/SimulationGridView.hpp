@@ -7,7 +7,6 @@
 #include <glm/vec2.hpp>
 
 #include "SimulationView.hpp"
-#include "Utils/macros.hpp"
 
 class SimulationGridView{
 public:
@@ -24,7 +23,7 @@ private:
         std::array<std::unique_ptr<SimulationView>, N> children;
 
     public:
-        explicit SplitGrid(auto &&...args) NOEXCEPT_IF_RELEASE;
+        explicit SplitGrid(auto &&...args);
 
         friend class SimulationGridView;
     };
@@ -52,7 +51,7 @@ public:
      * <tt>getSplitMethod() == QuadrantSplit</tt>, 0 < \p idx < 4 valid.<br>
      * In debug mode, index assertion is executed.
      */
-    const std::unique_ptr<SimulationView> &operator[](std::size_t idx) const NOEXCEPT_IF_RELEASE;
+    const std::unique_ptr<SimulationView> &operator[](std::size_t idx) const;
 
     [[nodiscard]] std::span<std::unique_ptr<SimulationView>> simulations() noexcept;
     [[nodiscard]] std::span<const std::unique_ptr<SimulationView>> simulations() const noexcept;
@@ -103,7 +102,7 @@ public:
 };
 
 template <std::size_t N> requires (N == 1 || N == 2 || N == 4)
-SimulationGridView::SplitGrid<N>::SplitGrid(auto &&...args) NOEXCEPT_IF_RELEASE : children { std::forward<decltype(args)>(args)... } {
+SimulationGridView::SplitGrid<N>::SplitGrid(auto &&...args) : children { std::forward<decltype(args)>(args)... } {
 #ifndef NDEBUG
     std::size_t notnull_count = [this]{
         if constexpr (N == 1){

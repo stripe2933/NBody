@@ -45,10 +45,11 @@ std::vector<NBodyExecutor::Body> BodyPreset::galaxy(std::size_t num_bodies, unsi
     static NoiseDisk dis;
 
     std::mt19937 gen { seed };
+    std::uniform_real_distribution mass_dis { 1.f, 10.f };
     return generate_n(num_bodies, [&]() -> NBodyExecutor::Body {
         const glm::vec3 position = dis(gen);
         const glm::vec3 velocity = 0.2f * glm::vec3(position.z, dis.normal_dis(gen), -position.x);
-        return { 1.f, position, velocity };
+        return { mass_dis(gen), position, velocity };
     });
 }
 
@@ -56,8 +57,9 @@ std::vector<NBodyExecutor::Body> BodyPreset::explosion(std::size_t num_bodies, u
     static BallDistribution dis;
 
     std::mt19937 gen { seed };
+    std::uniform_real_distribution mass_dis { 1.f, 10.f };
     return generate_n(num_bodies, [&]() -> NBodyExecutor::Body {
         const glm::vec3 position = dis(gen);
-        return NBodyExecutor::Body { 1.f, position, 0.1f * position };
+        return NBodyExecutor::Body { mass_dis(gen), position, 0.1f * position };
     });
 }

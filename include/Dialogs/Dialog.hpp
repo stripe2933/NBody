@@ -9,6 +9,10 @@
 namespace Dialog{
     template <typename ResultType>
     struct Dialog{
+    protected:
+        using result_t = ResultType;
+
+    public:
         bool is_open = false;
 
         virtual ~Dialog() noexcept = default;
@@ -18,6 +22,6 @@ namespace Dialog{
          * @param name Name of dialog, which is also used for ImGui identifier.
          * @return \p std::nullopt if dialog is waiting for user input or closed without result, otherwise \p std::optional of result.
          */
-        virtual std::optional<ResultType> open(const char *name) = 0;
+        virtual std::optional<result_t> open(const char *name) = 0;
     };
 };
