@@ -4,14 +4,17 @@
 
 #pragma once
 
+#include <list>
+
 #include <OpenGLApp/Window.hpp>
 #include <OpenGLApp/Program.hpp>
 #include <OpenGLApp/Camera.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <dirty_property.hpp>
 
 #include "SimulationGridView.hpp"
-#include "Dialogs/NewSimulationDialog.hpp"
-#include "Utils/DirtyProperty.hpp"
+#include "Dialogs/NewSimulationViewDialog.hpp"
+#include "Dialogs/NewSimulationDataDialog.hpp"
 
 namespace Options{
     struct TimeStep{
@@ -36,6 +39,14 @@ struct ProjectionViewUniform{
 struct PointSizeUniform{
     float coefficient;
     float constant;
+
+    constexpr bool operator==(const PointSizeUniform &rhs) const noexcept {
+        return coefficient == rhs.coefficient && constant == rhs.constant;
+    }
+
+    constexpr bool operator!=(const PointSizeUniform &rhs) const noexcept {
+        return !(rhs == *this);
+    }
 };
 
 class App : public OpenGL::Window{
@@ -44,17 +55,19 @@ private:
 
     // OpenGL uniforms.
     GLuint projection_view_ubo, point_size_ubo;
-    DirtyProperty<ProjectionViewUniform> projection_view_uniform = ProjectionViewUniform { .projection_view = glm::identity<glm::mat4>() };
-    DirtyProperty<PointSizeUniform> point_size_uniform = PointSizeUniform { .coefficient = 0.f, .constant = 10.f };
+    DirtyProperty<ProjectionViewUniform> projection_view_uniform { ProjectionViewUniform { .projection_view = glm::identity<glm::mat4>() } };
+    DirtyProperty<PointSizeUniform> point_size_uniform { PointSizeUniform { .coefficient = 0.f, .constant = 10.f } };
 
     // OpenGL properties.
     OpenGL::Camera camera;
+    DirtyProperty<glm::mat4> view_matrix, projection_matrix;
 
     // Simulation properties.
-    SimulationGridView simulation_grid;
     bool is_running = false;
     Options::TimeStep::Type time_step_method = Options::TimeStep::Automatic{};
     Options::PointSize::Type point_size_method = Options::PointSize::Fixed { .radius = 10.f };
+    std::list<std::shared_ptr<SimulationData>> simulations; // 1 simulation data can be used in multiple simulation views -> use shared_ptr.
+    SimulationGridView simulation_grid;
 
     // Controlling properties.
     std::optional<glm::vec2> previous_mouse_position;
@@ -64,7 +77,9 @@ private:
     } control;
 
     // ImGui controls.
-    Dialog::NewSimulationDialog new_simulation_dialog;
+    std::shared_ptr<SimulationData> selected_simulation = nullptr;
+    Dialog::NewSimulationDataDialog new_simulation_data_dialog;
+    Dialog::NewSimulationViewDialog new_simulation_view_dialog { simulations };
 
     void onFramebufferSizeChanged(int width, int height) override;
     void onScrollChanged(double xoffset, double yoffset) override;
@@ -75,7 +90,7 @@ private:
     void draw() const override;
 
     void initImGui();
-    void updateImGui(float time_delta);
+    void updateImGui(float colorizer);
     void onCameraChanged();
 
 public:

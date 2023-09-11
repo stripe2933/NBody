@@ -6,14 +6,14 @@ include(FetchContent)
 FetchContent_Declare(
     NBodyExecutor
     GIT_REPOSITORY https://github.com/stripe2933/NBodyExecutor.git
-    GIT_TAG main
+    GIT_TAG 7962f88
 )
 FetchContent_MakeAvailable(NBodyExecutor)
 
 FetchContent_Declare(
     OpenGLApp
     GIT_REPOSITORY https://github.com/stripe2933/OpenGLApp.git
-    GIT_TAG 6e64ccd
+    GIT_TAG 7de1780
 )
 FetchContent_MakeAvailable(OpenGLApp)
 
@@ -26,12 +26,18 @@ add_executable(NBody main.cpp
         src/SimulationView.cpp
         src/BodyPreset.cpp
         src/SimulationGridView.cpp
-        src/Dialogs/NewSimulationDialog.cpp
+        src/Dialogs/NewSimulationViewDialog.cpp
         src/NaiveSimulationView.cpp
         src/BarnesHutSimulationView.cpp
+        src/Dialogs/NewSimulationDataDialog.cpp
+        src/SimulationData.cpp
+        src/NaiveSimulationData.cpp
+        include/NaiveSimulationData.hpp
+        src/BarnesHutSimulationData.cpp
+        include/BarnesHutSimulationData.hpp
 )
 target_compile_features(NBody PRIVATE cxx_std_20)
-target_include_directories(NBody PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(NBody PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/extlibs)
 target_link_libraries(NBody PRIVATE NBodyExecutor OpenGLApp imgui::imgui fmt::fmt range-v3::range-v3)
 
 # Copy shader files to executable folder.

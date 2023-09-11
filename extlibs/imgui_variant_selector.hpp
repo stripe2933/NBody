@@ -16,7 +16,7 @@ struct ImGuiLabel { };
     template <> \
     struct ImGuiLabel<type> { \
         static constexpr const char *value = label; \
-    };
+    }
 
 namespace ImGui::VariantSelector{
     namespace details{

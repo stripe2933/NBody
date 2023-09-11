@@ -8,10 +8,10 @@
 
 #include <NBodyExecutor/NaiveExecutor.hpp>
 
-class NaiveSimulationView : public SimulationView{
-private:
-
-public:
-    NaiveSimulationView(std::string name, std::vector<NBodyExecutor::Body> bodies, std::unique_ptr<NBodyExecutor::NaiveExecutor> executor);
-    ~NaiveSimulationView() noexcept override = default;
-};
+//class NaiveSimulationView : public SimulationView{
+//private:
+//
+//public:
+//    NaiveSimulationView(std::string name, std::vector<NBodyExecutor::Body> bodies, std::unique_ptr<NBodyExecutor::NaiveExecutor> executor);
+//    ~NaiveSimulationView() noexcept override = default;
+//};

@@ -6,7 +6,7 @@ layout(location = 0) in float aMass;
 layout(location = 1) in vec3 aPosition;
 layout(location = 2) in vec3 aVelocity;
 
-out vec3 color;
+out vec4 color;
 
 layout (std140) uniform ProjectionView{
     mat4 projection_view;
@@ -27,9 +27,9 @@ vec3 hsv2rgb(vec3 c){
 }
 
 void main(){
-    float angle = atan(aPosition.z, aPosition.x);
-    float hue = fract((angle - M_PI) / (2.0 * M_PI) + offset);
-    color = hsv2rgb(vec3(hue, 1.0, 1.0));
+    float angle = atan(aPosition.z, aPosition.x) + offset;
+    float hue = fract((angle - M_PI) / (2.0 * M_PI));
+    color = vec4(hsv2rgb(vec3(hue, 1.0, 1.0)), 1.0);
 
     gl_Position = projection_view * vec4(aPosition, 1.0);
     gl_PointSize = mass_factor * aMass + mass_constant;

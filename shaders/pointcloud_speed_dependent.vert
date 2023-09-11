@@ -4,7 +4,7 @@ layout(location = 0) in float aMass;
 layout(location = 1) in vec3 aPosition;
 layout(location = 2) in vec3 aVelocity;
 
-out vec3 color;
+out vec4 color;
 
 layout (std140) uniform ProjectionView{
     mat4 projection_view;
@@ -17,8 +17,8 @@ layout (std140) uniform PointSize{
 
 uniform float speed_low;
 uniform float speed_high;
-uniform vec3 color_low;
-uniform vec3 color_high;
+uniform vec4 color_low;
+uniform vec4 color_high;
 
 void main(){
     float velocity_percentage = (length(aVelocity) - speed_low) / (speed_high - speed_low);

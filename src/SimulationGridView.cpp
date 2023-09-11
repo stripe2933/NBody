@@ -7,26 +7,15 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <visitor_helper.hpp>
 
-#include "Utils/VisitorHelper.hpp"
-
-std::span<std::unique_ptr<SimulationView>> SimulationGridView::simulations() noexcept{
-    return std::visit([](auto &x) -> std::span<std::unique_ptr<SimulationView>> {
-        return { x.children.data(), x.children.size() };
-    }, split_grid);
-}
-
-std::span<const std::unique_ptr<SimulationView>> SimulationGridView::simulations() const noexcept{
+std::span<const std::shared_ptr<SimulationView>> SimulationGridView::views() const noexcept{
     return std::visit([](const auto &x) {
         return std::span { x.children.data(), x.children.size() };
     }, split_grid);
 }
 
-const std::unique_ptr<SimulationView> &SimulationGridView::operator[](std::size_t idx) const{
-    return simulations()[idx];
-}
-
-void SimulationGridView::add(std::unique_ptr<SimulationView> &&simulation_view) {
+void SimulationGridView::add(std::shared_ptr<SimulationView> simulation_view) {
     /* State changing strategy:
      *
      * 1. If current split method is NoSplit (currently no simulation or only one simulation is present),
@@ -38,10 +27,10 @@ void SimulationGridView::add(std::unique_ptr<SimulationView> &&simulation_view) 
      *    bottom-left child.
      * 3. If current split method is QuadrantSplitGrid (currently three or four simulations are present), then find the first
      *    empty simulation (nullptr) in the children array and set the given simulation as the child. If there is no empty
-     *    simulation (which means 4 simulations are fully presented), then throw std::out_of_range exception.
+     *    simulation (which means 4 views are fully presented), then throw std::out_of_range exception.
      */
 
-    std::visit(Utils::overload {
+    std::visit(overload {
         [&](NoSplitGrid &no_split){
             if (auto &[child] = no_split.children; child){
                 split_grid = HorizontalSplitGrid { std::move(child), std::move(simulation_view) };
@@ -78,10 +67,10 @@ void SimulationGridView::removeAt(std::size_t idx) {
      *    - If simulation corresponds to the given index is nullptr, then throw \p std::invalid_argument exception.
      *    - If simulation corresponds to the given index is notnull, then set it to nullptr.
      *      - If there are two simulations, then change the split method to HorizontalSplit.
-     *      - If there are three simulations, then do nothing.
+     *      - If there are three views, then do nothing.
      */
 
-    std::visit(Utils::overload {
+    std::visit(overload {
         [&](NoSplitGrid &no_split){
             if (idx == 0){
                 if (auto &[child] = no_split.children; child){
@@ -109,17 +98,17 @@ void SimulationGridView::removeAt(std::size_t idx) {
 
         },
         [&](QuadrantSplitGrid &quadrant_split){
-            const std::size_t notnull_simulation_count = notNullSimulationCount();
+            const std::size_t notnull_simulation_count = notNullViewCount();
 
             if (notnull_simulation_count == 3){
                 if (quadrant_split.children[idx]){
                     quadrant_split.children[idx].reset();
 
-                    auto notnull_simulations = quadrant_split.children
+                    auto notnull_views = quadrant_split.children
                            | ranges::views::filter([](const auto &x) { return x != nullptr; })
                            | ranges::views::move
                            | ranges::to_vector;
-                    split_grid = HorizontalSplitGrid { std::move(notnull_simulations[0]), std::move(notnull_simulations[1]) };
+                    split_grid = HorizontalSplitGrid { std::move(notnull_views[0]), std::move(notnull_views[1]) };
                 }
                 else{
                     throw std::invalid_argument { "Given simulation is already empty." };
@@ -141,23 +130,23 @@ void SimulationGridView::removeAt(std::size_t idx) {
 }
 
 void SimulationGridView::swap(std::size_t idx1, std::size_t idx2) {
-    auto at = [this](std::size_t idx) -> std::unique_ptr<SimulationView>& {
-        return std::visit([=](auto &x) -> std::unique_ptr<SimulationView>& { return x.children[idx]; }, split_grid);
+    auto at = [this](std::size_t idx) -> std::shared_ptr<SimulationView>& {
+        return std::visit([=](auto &x) -> std::shared_ptr<SimulationView>& { return x.children[idx]; }, split_grid);
     };
 
     std::swap(at(idx1), at(idx2));
 }
 
 void SimulationGridView::update(float time_delta) {
-    auto notnull_simulations = simulations()
+    auto notnull_simulation_views = views()
         | ranges::views::filter([](const auto &x) { return x != nullptr; });
-    for (auto &simulation : notnull_simulations){
-        simulation->update(time_delta);
+    for (auto &simulation_view : notnull_simulation_views){
+        simulation_view->update(time_delta);
     }
 }
 
 void SimulationGridView::draw() const {
-    std::visit(Utils::overload {
+    std::visit(overload {
         [&](const NoSplitGrid &no_split){
             if (const auto &[child] = no_split.children; child){
                 glViewport(position.x, position.y, size.x, size.y);
@@ -194,7 +183,7 @@ void SimulationGridView::draw() const {
 }
 
 SimulationGridView::SplitMethod SimulationGridView::getSplitMethod() const noexcept {
-    return std::visit(Utils::overload {
+    return std::visit(overload {
         [](const NoSplitGrid&) { return SplitMethod::NoSplit; },
         [](const HorizontalSplitGrid&) { return SplitMethod::HorizontalSplit; },
         [](const QuadrantSplitGrid&) { return SplitMethod::QuadrantSplit; }
@@ -207,13 +196,8 @@ SimulationGridView::SimulationGridView(glm::vec<2, GLint> position, glm::vec<2, 
 
 }
 
-[[nodiscard]] std::size_t SimulationGridView::notNullSimulationCount() const noexcept{
-    return std::visit(
-        [](const auto &split_method) {
-            return std::ranges::count_if(split_method.children, [](const auto &x) { return x != nullptr; });
-        },
-        split_grid
-    );
+[[nodiscard]] std::size_t SimulationGridView::notNullViewCount() const noexcept{
+    return std::ranges::count_if(views(), [](const auto &view) { return view != nullptr; });
 }
 
 [[nodiscard]] float SimulationGridView::getViewportAspectRatio() const noexcept{

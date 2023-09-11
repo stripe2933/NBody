@@ -6,54 +6,49 @@
 
 #include <GL/glew.h>
 #include <OpenGLApp/Program.hpp>
-#include <NBodyExecutor/Executor.hpp>
+#include <dirty_property.hpp>
 
-#include "Utils/DirtyProperty.hpp"
+#include "SimulationData.hpp"
 
 struct Colorizer{
     struct Uniform{
-        DirtyProperty<glm::vec3> body_color = glm::vec3 { 0.2f, 0.5f, 1.f };
+        glm::vec4 body_color { 0.2f, 0.5f, 1.f, 1.f };
     };
 
     struct SpeedDependent{
-        DirtyProperty<float> speed_low = 0.f;
-        DirtyProperty<float> speed_high = 1.f;
-        DirtyProperty<glm::vec3> color_low = glm::vec3 { 0.f, 0.f, 1.f };
-        DirtyProperty<glm::vec3> color_high = glm::vec3 { 1.f, 0.f, 0.f };
+        std::array<float, 2> speed_range { 0.f, 1.f };
+        glm::vec4 color_low { 0.f, 0.f, 1.f, 1.f };
+        glm::vec4 color_high { 1.f, 0.f, 0.f, 1.f };
     };
 
     struct DirectionDependent{
-        DirtyProperty<float> offset = 0.f;
+        float offset { 0.f };
     };
 
     using Type = std::variant<Uniform, SpeedDependent, DirectionDependent>;
 };
 
-class SimulationView{
+class SimulationView final : public std::enable_shared_from_this<SimulationView>{
 protected:
-    std::vector<NBodyExecutor::Body> bodies;
-    std::unique_ptr<NBodyExecutor::Executor> executor;
-
-    struct {
-        GLuint vao, vbo;
-    } pointcloud;
+    std::shared_ptr<SimulationData> simulation_data;
 
 public:
     static struct{
         std::unique_ptr<OpenGL::Program> pointcloud_uniform,
                                          pointcloud_speed_dependent,
                                          pointcloud_direction_dependent;
-        std::unique_ptr<OpenGL::Program> nodebox;
+        std::unique_ptr<OpenGL::Program> node_box;
     } programs;
 
     const std::string name;
     Colorizer::Type colorizer = Colorizer::Uniform {};
 
-    SimulationView(std::string name, std::vector<NBodyExecutor::Body> bodies, std::unique_ptr<NBodyExecutor::Executor> executor);
-    virtual ~SimulationView() noexcept;
+    SimulationView(std::string name, std::shared_ptr<SimulationData> data);
 
-    virtual void update(float time_delta);
-    virtual void draw() const;
+    void update(float time_delta);
+    void draw() const;
+
+    std::shared_ptr<SimulationView> getSharedPtr();
 
     /**
      * @brief Initialize OpenGL programs.

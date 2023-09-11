@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include <glm/gtc/constants.hpp>
+#include <glm/gtc/random.hpp>
 
 namespace{
     struct BallDistribution{

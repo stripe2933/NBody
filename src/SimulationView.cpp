@@ -3,101 +3,101 @@
 //
 
 #include "SimulationView.hpp"
+#include "BarnesHutSimulationData.hpp"
 
-#include <glm/gtc/constants.hpp>
+#include <visitor_helper.hpp>
 
-#include "Utils/VisitorHelper.hpp"
+decltype(SimulationView::programs) SimulationView::programs {
+    .pointcloud_uniform = nullptr,
+    .pointcloud_speed_dependent = nullptr,
+    .pointcloud_direction_dependent = nullptr,
+    .node_box = nullptr
+};
 
-decltype(SimulationView::programs) SimulationView::programs { .pointcloud_uniform = nullptr, .pointcloud_speed_dependent = nullptr, .pointcloud_direction_dependent = nullptr, .nodebox = nullptr };
-
-SimulationView::SimulationView(std::string name, std::vector<NBodyExecutor::Body> bodies, std::unique_ptr<NBodyExecutor::Executor> executor)
-        : name { std::move(name) }, bodies { std::move(bodies) }, executor { std::move(executor) }
+SimulationView::SimulationView(std::string name, std::shared_ptr<SimulationData> data)
+        : name { std::move(name) }, simulation_data { std::move(data) }
 {
-    glGenVertexArrays(1, &pointcloud.vao);
-    glBindVertexArray(pointcloud.vao);
 
-    glGenBuffers(1, &pointcloud.vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, pointcloud.vbo);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(this->bodies.size() * sizeof(NBodyExecutor::Body)), this->bodies.data(), GL_STREAM_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, sizeof(NBodyExecutor::Body), reinterpret_cast<GLint*>(offsetof(NBodyExecutor::Body, mass)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(NBodyExecutor::Body), reinterpret_cast<GLint*>(offsetof(NBodyExecutor::Body, position)));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(NBodyExecutor::Body), reinterpret_cast<GLint*>(offsetof(NBodyExecutor::Body, velocity)));
-}
-
-SimulationView::~SimulationView() noexcept {
-    glDeleteBuffers(1, &pointcloud.vbo);
-    glDeleteVertexArrays(1, &pointcloud.vao);
 }
 
 void SimulationView::update(float time_delta) {
-    // Reset each body's acceleration to zero before n-body execution.
-    std::ranges::for_each(bodies, [](NBodyExecutor::Body &body) { body.acceleration = glm::zero<glm::vec3>(); });
-    executor->execute(bodies, time_delta);
 
-    // Copy data in bodies to GPU. Since allocated data size in GPU is equal to bodies, use glBufferSubData rather
-    // than glBufferData.
-    glBindBuffer(GL_ARRAY_BUFFER, pointcloud.vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(bodies.size() * sizeof(NBodyExecutor::Body)), bodies.data());
-
-    std::visit(Utils::overload{
-        [&](const Colorizer::Uniform& uniform_colorizer){
-            if (uniform_colorizer.body_color.is_dirty){
-                programs.pointcloud_uniform->setUniform("body_color", uniform_colorizer.body_color.value);
-            }
-        },
-        [&](const Colorizer::SpeedDependent& speed_dependent_colorizer){
-            if (speed_dependent_colorizer.speed_low.is_dirty){
-                programs.pointcloud_speed_dependent->setUniform("speed_low", speed_dependent_colorizer.speed_low.value);
-            }
-            if (speed_dependent_colorizer.speed_high.is_dirty){
-                programs.pointcloud_speed_dependent->setUniform("speed_high", speed_dependent_colorizer.speed_high.value);
-            }
-            if (speed_dependent_colorizer.color_low.is_dirty){
-                programs.pointcloud_speed_dependent->setUniform("color_low", speed_dependent_colorizer.color_low.value);
-            }
-            if (speed_dependent_colorizer.color_high.is_dirty){
-                programs.pointcloud_speed_dependent->setUniform("color_high", speed_dependent_colorizer.color_high.value);
-            }
-        },
-        [&](const Colorizer::DirectionDependent& direction_dependent_colorizer){
-            if (direction_dependent_colorizer.offset.is_dirty){
-                programs.pointcloud_direction_dependent->setUniform("offset", direction_dependent_colorizer.offset.value);
-            }
-        }
-    }, colorizer);
 }
 
 void SimulationView::draw() const{
-    std::visit(Utils::overload{
-        [&](const Colorizer::Uniform&){
+    // Set program and uniforms.
+    // Uniform setting shouldn't be done in update() function, because the same shader for different colorizer
+    // is used in draw function.
+    std::visit(overload{
+        [&](const Colorizer::Uniform &colorizer){
             programs.pointcloud_uniform->use();
+            programs.pointcloud_uniform->setUniform("body_color", colorizer.body_color);
         },
-        [&](const Colorizer::SpeedDependent&){
+        [&](const Colorizer::SpeedDependent &colorizer){
             programs.pointcloud_speed_dependent->use();
+            programs.pointcloud_speed_dependent->setUniform("speed_low", std::get<0>(colorizer.speed_range));
+            programs.pointcloud_speed_dependent->setUniform("speed_high", std::get<1>(colorizer.speed_range));
+            programs.pointcloud_speed_dependent->setUniform("color_low", colorizer.color_low);
+            programs.pointcloud_speed_dependent->setUniform("color_high", colorizer.color_high);
         },
-        [&](const Colorizer::DirectionDependent&){
+        [&](const Colorizer::DirectionDependent &colorizer){
             programs.pointcloud_direction_dependent->use();
+            programs.pointcloud_direction_dependent->setUniform("offset", colorizer.offset);
         }
     }, colorizer);
-    glBindVertexArray(pointcloud.vao);
-    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(bodies.size()));
+
+    glBindVertexArray(simulation_data->pointcloud.vao);
+    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(simulation_data->bodies.size()));
+
+    if (auto *barnes_hut_simulation_data = dynamic_cast<const BarnesHutSimulationData*>(simulation_data.get())){
+        programs.node_box->use();
+        glBindVertexArray(barnes_hut_simulation_data->node_box.vao);
+        glDrawElementsInstanced(
+                GL_LINES,
+                24,
+                GL_UNSIGNED_BYTE,
+                nullptr,
+                static_cast<GLsizei>(barnes_hut_simulation_data->node_box.num_boxes));
+    }
+}
+
+std::shared_ptr<SimulationView> SimulationView::getSharedPtr() {
+    return shared_from_this();
 }
 
 void SimulationView::initPrograms() {
+    const auto uniform_vertex_shader = OpenGL::Shader::fromFile(
+        GL_VERTEX_SHADER,
+        "shaders/pointcloud_uniform.vert"
+    );
+    const auto speed_dependent_vertex_shader = OpenGL::Shader::fromFile(
+        GL_VERTEX_SHADER,
+        "shaders/pointcloud_speed_dependent.vert"
+    );
+    const auto direction_dependent_vertex_shader = OpenGL::Shader::fromFile(
+        GL_VERTEX_SHADER,
+        "shaders/pointcloud_direction_dependent.vert"
+    );
+    const auto fragment_shader = OpenGL::Shader::fromFile(
+        GL_FRAGMENT_SHADER,
+        "shaders/pointcloud.frag"
+    );
+
     programs.pointcloud_uniform = std::make_unique<OpenGL::Program>(
-            "shaders/pointcloud_uniform.vert",
-            "shaders/pointcloud.frag"
+        uniform_vertex_shader,
+        fragment_shader
     );
     programs.pointcloud_speed_dependent = std::make_unique<OpenGL::Program>(
-            "shaders/pointcloud_speed_dependent.vert",
-            "shaders/pointcloud.frag"
+        speed_dependent_vertex_shader,
+        fragment_shader
     );
     programs.pointcloud_direction_dependent = std::make_unique<OpenGL::Program>(
-            "shaders/pointcloud_direction_dependent.vert",
-            "shaders/pointcloud.frag"
+        direction_dependent_vertex_shader,
+        fragment_shader
+    );
+
+    programs.node_box = std::make_unique<OpenGL::Program>(
+        "shaders/node_box.vert",
+        "shaders/node_box.frag"
     );
 }

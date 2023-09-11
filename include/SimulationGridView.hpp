@@ -20,14 +20,13 @@ private:
     template <std::size_t N> requires (N == 1 || N == 2 || N == 4)
     class SplitGrid {
     private:
-        std::array<std::unique_ptr<SimulationView>, N> children;
+        std::array<std::shared_ptr<SimulationView>, N> children;
 
     public:
         explicit SplitGrid(auto &&...args);
 
         friend class SimulationGridView;
     };
-
 
     using NoSplitGrid = SplitGrid<1>;
     using HorizontalSplitGrid = SplitGrid<2>;
@@ -41,36 +40,23 @@ public:
 
     SimulationGridView(glm::vec<2, GLint> position, glm::vec<2, GLsizei> size);
 
-    /**
-     * Access to the simulation with index.
-     * @param idx Index of simulation.
-     * @return unique_ptr of SimulationView.
-     * @note
-     * <tt>getSplitMethod() == NoSplit</tt>, only \p idx = 0 valid.<br>
-     * <tt>getSplitMethod() == HorizontalSplit</tt>, \p idx = 0 or 1 valid.<br>
-     * <tt>getSplitMethod() == QuadrantSplit</tt>, 0 < \p idx < 4 valid.<br>
-     * In debug mode, index assertion is executed.
-     */
-    const std::unique_ptr<SimulationView> &operator[](std::size_t idx) const;
-
-    [[nodiscard]] std::span<std::unique_ptr<SimulationView>> simulations() noexcept;
-    [[nodiscard]] std::span<const std::unique_ptr<SimulationView>> simulations() const noexcept;
+    [[nodiscard]] std::span<const std::shared_ptr<SimulationView>> views() const noexcept;
 
     [[nodiscard]] SplitMethod getSplitMethod() const noexcept;
-    [[nodiscard]] std::size_t notNullSimulationCount() const noexcept;
+    [[nodiscard]] std::size_t notNullViewCount() const noexcept;
     [[nodiscard]] float getViewportAspectRatio() const noexcept;
 
     /**
-     * @brief Add simulation to the simulation grid.
+     * @brief Add simulation view to the simulation grid view.
      * @param simulation_view \p unique_ptr of SimulationView.
-     * @throws std::out_of_range if it already has 4 simulations.
+     * @throws std::out_of_range if it already has 4 views.
      * @note It automatically change the internal \p split_grid to rearrange the views. The spilt method and state
      * can be only changed via \p add, \p removeAt, \p swap.
      */
-    void add(std::unique_ptr<SimulationView> &&simulation_view);
+    void add(std::shared_ptr<SimulationView> simulation_view);
 
     /**
-     * @brief Remove the simulation at the given index.
+     * @brief Remove the simulation view at the given index.
      * @param idx Index to remove at.
      * @throws std::out_of_range if the index is out of range. Valid index is different for each split method:
      * (\p NoSplit -> 0, \p HorizontalSplit -> 0, 1, \p QuadrantSplit -> 0, 1, 2, 3).
@@ -84,13 +70,13 @@ public:
     void swap(std::size_t idx1, std::size_t idx2);
 
     /**
-     * @brief Update all notnull simulations in the grid.
+     * @brief Update all notnull simulation views in the grid.
      * @param time_delta Time delta to update.
      */
     void update(float time_delta);
 
     /**
-     * @brief Draw all notnull simulations in the grid.
+     * @brief Draw all notnull simulation views in the grid.
      *
      * Since each viewport of \p SimulationView is varied by the current split method, it depends on the position and the
      * size of the region.
@@ -104,7 +90,7 @@ public:
 template <std::size_t N> requires (N == 1 || N == 2 || N == 4)
 SimulationGridView::SplitGrid<N>::SplitGrid(auto &&...args) : children { std::forward<decltype(args)>(args)... } {
 #ifndef NDEBUG
-    std::size_t notnull_count = [this]{
+    const std::size_t notnull_count = [this]{
         if constexpr (N == 1){
             return (std::get<0>(children) != nullptr);
         }
@@ -118,8 +104,8 @@ SimulationGridView::SplitGrid<N>::SplitGrid(auto &&...args) : children { std::fo
 
     assert(
         (N == 1 && (notnull_count == 0 || notnull_count == 1)) || // NoSplitGrid can have either null or notnull simulation.
-        (N == 2 && notnull_count == 2) || // HorizontalSplitGrid must have 2 notnull simulations.
-        (N == 4 && (notnull_count >= 0 && notnull_count <= 3)) // QuadrantSplitGrid should have at least 3 notnull simulations.
+        (N == 2 && notnull_count == 2) || // HorizontalSplitGrid must have 2 notnull views.
+        (N == 4 && (notnull_count >= 0 && notnull_count <= 3)) // QuadrantSplitGrid should have at least 3 notnull views.
     );
 #endif
 }
