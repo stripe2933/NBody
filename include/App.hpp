@@ -13,8 +13,8 @@
 #include <dirty_property.hpp>
 
 #include "SimulationGridView.hpp"
-#include "Dialogs/NewSimulationViewDialog.hpp"
 #include "Dialogs/NewSimulationDataDialog.hpp"
+#include "Dialogs/ConfirmDeletingSimulationDataDialog.hpp"
 
 namespace Options{
     struct TimeStep{
@@ -25,8 +25,8 @@ namespace Options{
     };
 
     struct PointSize{
-        struct Fixed { float radius; };
-        struct MassProportional { float coefficient; };
+        struct Fixed { float radius = 1.f; };
+        struct MassProportional { float coefficient = 1.f; };
 
         using Type = std::variant<Fixed, MassProportional>;
     };
@@ -68,6 +68,7 @@ private:
     Options::PointSize::Type point_size_method = Options::PointSize::Fixed { .radius = 10.f };
     std::list<std::shared_ptr<SimulationData>> simulations; // 1 simulation data can be used in multiple simulation views -> use shared_ptr.
     SimulationGridView simulation_grid;
+    std::weak_ptr<SimulationData> selected_simulation;
 
     // Controlling properties.
     std::optional<glm::vec2> previous_mouse_position;
@@ -77,9 +78,8 @@ private:
     } control;
 
     // ImGui controls.
-    std::shared_ptr<SimulationData> selected_simulation = nullptr;
-    Dialog::NewSimulationDataDialog new_simulation_data_dialog;
-    Dialog::NewSimulationViewDialog new_simulation_view_dialog { simulations };
+    ConfirmDeletingSimulationDataDialog confirm_deleting_simulation_data_dialog;
+    NewSimulationDataDialog new_simulation_data_dialog;
 
     void onFramebufferSizeChanged(int width, int height) override;
     void onScrollChanged(double xoffset, double yoffset) override;

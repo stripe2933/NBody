@@ -4,15 +4,18 @@
 
 #include "BarnesHutSimulationData.hpp"
 
+#include <imgui.h>
+
+#include "SimulationView.hpp"
+
 BarnesHutSimulationData::BarnesHutSimulationData(std::string name,
                                                  std::vector <NBodyExecutor::Body> bodies,
                                                  std::unique_ptr <NBodyExecutor::BarnesHutExecutor> executor)
-        : SimulationData { std::move(name), std::move(bodies), std::move(executor) }
+        : SimulationData { ExecutorType::BarnesHut, std::move(name), std::move(bodies), std::move(executor) }
 {
     // Pointcloud VAO is set in base class.
     // Set node box VAO.
     auto barnes_hut_executor = dynamic_cast<NBodyExecutor::BarnesHutExecutor*>(this->executor.get());
-    barnes_hut_executor->record_node_boxes = true;
 
     constexpr std::array<glm::vec3, 8> base_vertices {
         glm::vec3 { 0.f, 0.f, 0.f },
@@ -88,29 +91,52 @@ BarnesHutSimulationData::~BarnesHutSimulationData() noexcept{
 }
 
 void BarnesHutSimulationData::update(float time_step) {
+    // If there is any associated view that draws node boxes, update node boxes.
+    const bool update_node_box = std::ranges::any_of(
+        associated_views,
+        [](const auto &view){
+            if (auto valid_view = view.lock()){
+                return valid_view->isNodeBoxVisible();
+            }
+            return false;
+        }
+    );
+
+    auto &barnes_hut_executor = dynamic_cast<NBodyExecutor::BarnesHutExecutor&>(*executor);
+    barnes_hut_executor.record_node_boxes = update_node_box;
+
     SimulationData::update(time_step);
 
-    auto barnes_hut_executor = dynamic_cast<const NBodyExecutor::BarnesHutExecutor*>(executor.get());
-    const auto node_boxes = barnes_hut_executor->getNodeBoxes();
-    node_box.num_boxes = node_boxes.size();
+    if (update_node_box){
+        const auto node_boxes = barnes_hut_executor.getNodeBoxes();
+        node_box.num_boxes = node_boxes.size();
 
-    if (node_box.num_boxes <= node_box.allocated_boxes){
-        // No need to reallocate the vbo; just rewrite to the existing buffer.
         glBindBuffer(GL_ARRAY_BUFFER, node_box.instance_vbo);
-        glBufferSubData(
-                GL_ARRAY_BUFFER,
-                0,
-                static_cast<GLsizeiptr>(node_box.num_boxes * sizeof(NBodyExecutor::Cube)),
-                node_boxes.data());
+        if (node_box.num_boxes <= node_box.allocated_boxes){
+            // No need to reallocate the vbo; just rewrite to the existing buffer.
+            glBufferSubData(
+                    GL_ARRAY_BUFFER,
+                    0,
+                    static_cast<GLsizeiptr>(node_box.num_boxes * sizeof(NBodyExecutor::Cube)),
+                    node_boxes.data());
+        }
+        else{
+            // Current box count exceeds the existing buffer size; reallocate the vbo.
+            glBufferData(
+                    GL_ARRAY_BUFFER,
+                    static_cast<GLsizeiptr>(node_box.num_boxes * sizeof(NBodyExecutor::Cube)),
+                    node_boxes.data(),
+                    GL_STREAM_DRAW);
+            node_box.allocated_boxes = node_box.num_boxes;
+        }
     }
-    else{
-        // Current box count exceeds the existing buffer size; reallocate the vbo.
-        glBindBuffer(GL_ARRAY_BUFFER, node_box.instance_vbo);
-        glBufferData(
-                GL_ARRAY_BUFFER,
-                static_cast<GLsizeiptr>(node_box.num_boxes * sizeof(NBodyExecutor::Cube)),
-                node_boxes.data(),
-                GL_STREAM_DRAW);
-        node_box.allocated_boxes = node_box.num_boxes;
-    }
+}
+
+void BarnesHutSimulationData::updateImGui(float time_step) {
+    SimulationData::updateImGui(time_step);
+
+    ImGui::Text("Executor: Barnes-Hut (%u threads)", executor->thread_pool ? executor->thread_pool->get_thread_count() : 1);
+    auto &barnes_hut_executor = dynamic_cast<NBodyExecutor::BarnesHutExecutor&>(*executor);
+    ImGui::DragFloat("Threshold", &barnes_hut_executor.threshold, 0.01f, 0.f, 10.f);
+    ImGui::Text("Octtree node count: %zu", node_box.num_boxes);
 }

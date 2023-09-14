@@ -9,19 +9,15 @@
 #include "Dialog.hpp"
 #include "SimulationView.hpp"
 
-namespace Dialog{
-    class NewSimulationViewDialog : public Dialog<std::shared_ptr<SimulationView>>{
-    private:
-        static int unnamed_index;
+class NewSimulationViewDialog : public Dialog<std::shared_ptr<SimulationView>, const std::list<std::shared_ptr<SimulationData>>&>{
+private:
+    static int unnamed_index;
 
-        std::string name;
-        std::shared_ptr<SimulationData> simulation_data = nullptr;
+    std::string name;
+    std::shared_ptr<SimulationData> simulation_data = nullptr;
 
-        const std::list<std::shared_ptr<SimulationData>> &simulation_list;
+    std::optional<result_t> inner(const std::list<std::shared_ptr<SimulationData>> &simulation_list) override;
 
-    public:
-        NewSimulationViewDialog(const std::list<std::shared_ptr<SimulationData>> &simulation_list);
-
-        std::optional<result_t> open(const char *title) override;
-    };
+public:
+    NewSimulationViewDialog() : Dialog { "Create new simulation view" } { }
 };

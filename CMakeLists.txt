@@ -32,9 +32,8 @@ add_executable(NBody main.cpp
         src/Dialogs/NewSimulationDataDialog.cpp
         src/SimulationData.cpp
         src/NaiveSimulationData.cpp
-        include/NaiveSimulationData.hpp
         src/BarnesHutSimulationData.cpp
-        include/BarnesHutSimulationData.hpp
+        src/Dialogs/ConfirmDeletingSimulationDataDialog.cpp
 )
 target_compile_features(NBody PRIVATE cxx_std_20)
 target_include_directories(NBody PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/extlibs)

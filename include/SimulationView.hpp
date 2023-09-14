@@ -5,6 +5,7 @@
 #pragma once
 
 #include <GL/glew.h>
+
 #include <OpenGLApp/Program.hpp>
 #include <dirty_property.hpp>
 
@@ -28,27 +29,34 @@ struct Colorizer{
     using Type = std::variant<Uniform, SpeedDependent, DirectionDependent>;
 };
 
-class SimulationView final : public std::enable_shared_from_this<SimulationView>{
+/**
+ * This class should be linked in its internal simulation data's \p associated_views , therefore you should use
+ * \p fromSimulationData() to automatically hold this, not constructors or \p std::make_shared() .
+ */
+class SimulationView final {
 protected:
-    std::shared_ptr<SimulationData> simulation_data;
+    Colorizer::Type colorizer = Colorizer::Uniform {};
+    bool show_node_boxes = true;
 
 public:
     static struct{
         std::unique_ptr<OpenGL::Program> pointcloud_uniform,
-                                         pointcloud_speed_dependent,
-                                         pointcloud_direction_dependent;
+                pointcloud_speed_dependent,
+                pointcloud_direction_dependent;
         std::unique_ptr<OpenGL::Program> node_box;
     } programs;
 
     const std::string name;
-    Colorizer::Type colorizer = Colorizer::Uniform {};
+    const std::weak_ptr<SimulationData> simulation_data;
 
-    SimulationView(std::string name, std::shared_ptr<SimulationData> data);
+    SimulationView(std::string name, std::weak_ptr<SimulationData> data); // TODO: this must be in private.
+    ~SimulationView() noexcept;
+
+    [[nodiscard]] bool isNodeBoxVisible() const;
 
     void update(float time_delta);
+    void updateImGui(float time_delta);
     void draw() const;
-
-    std::shared_ptr<SimulationView> getSharedPtr();
 
     /**
      * @brief Initialize OpenGL programs.
@@ -56,4 +64,12 @@ public:
      * any programs, e.g. uniform setting, drawing.
      */
     static void initPrograms();
+
+    /**
+     * Create \p shared_ptr of SimulationView with given name and simulation data.
+     * @param name Name of the simulation view.
+     * @param data Simulation data to holds. This should not be null.
+     * @return \p std::shared_ptr of SimulationView.
+     */
+    static std::shared_ptr<SimulationView> fromSimulationData(std::string name, std::weak_ptr<SimulationData> data);
 };

@@ -21,4 +21,5 @@ struct BarnesHutSimulationData : public SimulationData {
     ~BarnesHutSimulationData() noexcept override;
 
     void update(float time_step) override;
+    void updateImGui(float time_step) override;
 };

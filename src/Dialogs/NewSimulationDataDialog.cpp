@@ -15,19 +15,20 @@
 #include "BodyPreset.hpp"
 #include "NaiveSimulationData.hpp"
 #include "BarnesHutSimulationData.hpp"
+#include "ImGui/ScopedDisabled.hpp"
 
-IMGUI_LABEL(Dialog::NewSimulationDataDialog::Options::Executor::Naive, "Naive");
-IMGUI_LABEL(Dialog::NewSimulationDataDialog::Options::Executor::BarnesHut, "Barnes-Hut");
+IMGUI_LABEL(NewSimulationDataDialog::Options::Executor::Naive, "Naive");
+IMGUI_LABEL(NewSimulationDataDialog::Options::Executor::BarnesHut, "Barnes-Hut");
 
-IMGUI_LABEL(Dialog::NewSimulationDataDialog::Options::BodyPreset::Galaxy, "Galaxy");
-IMGUI_LABEL(Dialog::NewSimulationDataDialog::Options::BodyPreset::Explosion, "Explosion");
+IMGUI_LABEL(NewSimulationDataDialog::Options::BodyPreset::Galaxy, "Galaxy");
+IMGUI_LABEL(NewSimulationDataDialog::Options::BodyPreset::Explosion, "Explosion");
 
-IMGUI_LABEL(Dialog::NewSimulationDataDialog::Options::Seed::Fixed, "Fixed");
-IMGUI_LABEL(Dialog::NewSimulationDataDialog::Options::Seed::Random, "Random");
+IMGUI_LABEL(NewSimulationDataDialog::Options::Seed::Fixed, "Fixed");
+IMGUI_LABEL(NewSimulationDataDialog::Options::Seed::Random, "Random");
 
-int Dialog::NewSimulationDataDialog::unnamed_index = 1;
+int NewSimulationDataDialog::unnamed_index = 1;
 
-Dialog::NewSimulationDataDialog::result_t Dialog::NewSimulationDataDialog::constructResult() {
+NewSimulationDataDialog::result_t NewSimulationDataDialog::constructResult() {
     const auto seed = std::visit<std::uint32_t>(
         overload{
             [](const Options::Seed::Fixed &fixed_seed){
@@ -72,104 +73,92 @@ Dialog::NewSimulationDataDialog::result_t Dialog::NewSimulationDataDialog::const
     );
 }
 
-std::optional<Dialog::NewSimulationDataDialog::result_t> Dialog::NewSimulationDataDialog::open(const char *title){
+std::optional<NewSimulationDataDialog::result_t> NewSimulationDataDialog::inner(){
     static const auto name_hint_generator = []{
         return fmt::format("Unnamed simulation #{}", unnamed_index++);
     };
     static std::string name_hint = name_hint_generator();
 
     bool construct_result = false;
-    if (ImGui::BeginPopupModal(title, &is_open, ImGuiWindowFlags_AlwaysAutoResize)){
-        // Simulation name.
-        ImGui::InputTextWithHint("Name (optional)", name_hint.c_str(), &this->options.name);
 
-        // Select n-body executor.
-        if (ImGui::TreeNode("Executor")){
-            static const int max_threads = static_cast<int>(std::thread::hardware_concurrency());
+    // Simulation name.
+    ImGui::InputTextWithHint("Name (optional)", name_hint.c_str(), &this->options.name);
+
+    // Select n-body executor.
+    if (ImGui::TreeNode("Executor")){
+        static const int max_threads = static_cast<int>(std::thread::hardware_concurrency());
+        ImGui::VariantSelector::radio(
+            options.executor,
+            std::pair {
+                [](Options::Executor::Naive &executor) {
+                    ImGui::SliderInt("Number of threads", &executor.num_threads, 1, max_threads);
+                },
+                [] { return Options::Executor::Naive { .num_threads = 4 }; },
+            },
+            std::pair {
+                [](Options::Executor::BarnesHut &executor) {
+                    ImGui::SliderInt("Number of threads", &executor.num_threads, 1, max_threads);
+                },
+                [] { return Options::Executor::BarnesHut { .num_threads = 4 }; },
+            }
+        );
+
+        ImGui::TreePop();
+    }
+
+    // Select body preset.
+    if (ImGui::TreeNode("Body setting")){
+        ImGui::VariantSelector::combo(
+            "##body_preset_combo",
+            options.body_preset,
+            "Select body preset",
+            std::pair {
+                [](Options::BodyPreset::Galaxy &galaxy) {
+                    ImGui::DragInt("Body count", &galaxy.num_bodies, 1.f, 1, 65536);
+                },
+                [] {
+                    return Options::BodyPreset::Galaxy { .num_bodies = 256 };
+                },
+            },
+            std::pair {
+                [](Options::BodyPreset::Explosion &explosion) {
+                    ImGui::DragInt("Body count", &explosion.num_bodies, 1.f, 1, 65536);
+                },
+                [] {
+                    return Options::BodyPreset::Explosion { .num_bodies = 256 };
+                },
+            }
+        );
+
+        if (!std::holds_alternative<std::monostate>(options.body_preset)){
+            ImGui::TextUnformatted("Seed");
             ImGui::VariantSelector::radio(
-                options.executor,
+                options.seed,
                 std::pair {
-                    [](Options::Executor::Naive &executor) {
-                        ImGui::SliderInt("Number of threads", &executor.num_threads, 1, max_threads);
+                    [](Options::Seed::Fixed &fixed_seed) {
+                        ImGui::InputInt("##fixed_seed_input", &fixed_seed.seed);
                     },
-                    [] { return Options::Executor::Naive { .num_threads = 4 }; },
+                    [] { return Options::Seed::Fixed { .seed = 0 }; },
                 },
                 std::pair {
-                    [](Options::Executor::BarnesHut &executor) {
-                        ImGui::SliderInt("Number of threads", &executor.num_threads, 1, max_threads);
-                    },
-                    [] { return Options::Executor::BarnesHut { .num_threads = 4 }; },
+                    [](Options::Seed::Random &) { },
+                    [] { return Options::Seed::Random {}; },
                 }
             );
-
-            ImGui::TreePop();
         }
 
-        // Select body preset.
-        if (ImGui::TreeNode("Body setting")){
-            ImGui::VariantSelector::combo(
-                "##body_preset_combo",
-                options.body_preset,
-                "Select body preset",
-                std::pair {
-                    [](Options::BodyPreset::Galaxy &galaxy) {
-                        ImGui::DragInt("Body count", &galaxy.num_bodies, 1.f, 1, 65536);
-                    },
-                    [] {
-                        return Options::BodyPreset::Galaxy { .num_bodies = 256 };
-                    },
-                },
-                std::pair {
-                    [](Options::BodyPreset::Explosion &explosion) {
-                        ImGui::DragInt("Body count", &explosion.num_bodies, 1.f, 1, 65536);
-                    },
-                    [] {
-                        return Options::BodyPreset::Explosion { .num_bodies = 256 };
-                    },
-                }
-            );
+        ImGui::TreePop();
+    }
 
-            if (!std::holds_alternative<std::monostate>(options.body_preset)){
-                ImGui::TextUnformatted("Seed");
-                ImGui::VariantSelector::radio(
-                    options.seed,
-                    std::pair {
-                        [](Options::Seed::Fixed &fixed_seed) {
-                            ImGui::InputInt("##fixed_seed_input", &fixed_seed.seed);
-                        },
-                        [] { return Options::Seed::Fixed { .seed = 0 }; },
-                    },
-                    std::pair {
-                        [](Options::Seed::Random &) { },
-                        [] { return Options::Seed::Random {}; },
-                    }
-                );
-            }
-
-            ImGui::TreePop();
+    // If executor and body preset are property selected, enable add button.
+    ImGui::ScopedDisabled scoped_disabled { std::holds_alternative<std::monostate>(options.body_preset) };
+    if (ImGui::Button("Add")) {
+        if (options.name.empty()) {
+            options.name = std::move(name_hint);
+            name_hint = name_hint_generator();
         }
 
-        // If executor and body preset are property selected, enable add button.
-        ImGui::BeginDisabled(std::holds_alternative<std::monostate>(options.body_preset));
-        if (ImGui::Button("Add")){
-            if (options.name.empty()){
-                options.name = std::move(name_hint);
-                name_hint = name_hint_generator();
-            }
-
-            construct_result = true;
-            is_open = false;
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndDisabled();
-
-        ImGui::EndPopup();
+        return closeAndPresentResult(constructResult());
     }
-
-    if (construct_result){
-        return constructResult();
-    }
-    else{
-        return std::nullopt;
-    }
+    return std::nullopt;
 }

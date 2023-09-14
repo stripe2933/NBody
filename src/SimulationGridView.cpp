@@ -8,6 +8,10 @@
 #include <range/v3/view/move.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <visitor_helper.hpp>
+#include <imgui.h>
+
+#include "ImGui/ScopedId.hpp"
+#include "ImGui/ScopedDisabled.hpp"
 
 std::span<const std::shared_ptr<SimulationView>> SimulationGridView::views() const noexcept{
     return std::visit([](const auto &x) {
@@ -190,8 +194,8 @@ SimulationGridView::SplitMethod SimulationGridView::getSplitMethod() const noexc
     }, split_grid);
 }
 
-SimulationGridView::SimulationGridView(glm::vec<2, GLint> position, glm::vec<2, GLsizei> size)
-        : position { position }, size { size }
+SimulationGridView::SimulationGridView(const std::list<std::shared_ptr<SimulationData>> &simulations, glm::vec<2, GLint> position, glm::vec<2, GLsizei> size)
+        : simulations { simulations }, position { position }, size { size }
 {
 
 }
@@ -206,5 +210,86 @@ SimulationGridView::SimulationGridView(glm::vec<2, GLint> position, glm::vec<2, 
             return static_cast<float>(size.x) / static_cast<float>(size.y);
         case SplitMethod::HorizontalSplit:
             return static_cast<float>(size.x) / static_cast<float>(size.y) / 2.f;
+    }
+}
+
+void SimulationGridView::updateImGui(float time_delta) {
+    if (ImGui::CollapsingHeader("Simulation arrangement")) {
+        const auto set_button = [&](std::size_t idx, ImVec2 button_size) {
+            // If simulation is null, button has no displayed content and no context menu.
+            // Otherwise, button displays its simulation name and context menu, which have options for deletion.
+            auto &simulation = views()[idx];
+            auto &data = simulation->simulation_data;
+            if (simulation) {
+                ImGui::Button(simulation->name.c_str(), button_size);
+                ImGui::SetItemTooltip("Right click to open context menu.");
+
+                // Button have context menu, which allows user to delete the simulation.
+                if (ImGui::BeginPopupContextItem()) {
+                    if (ImGui::Selectable("Delete")) {
+                        removeAt(idx);
+                        if (auto valid_data = data.lock()){
+                            valid_data->refreshAssociatedViews();
+                        }
+                        on_layout_changed();
+                    }
+                    ImGui::EndPopup();
+                }
+            }
+            else {
+                ImGui::ScopedDisabled scoped_disabled;
+                ImGui::Button("-##btn_null_simulation", button_size);
+            }
+
+            // Each simulation's region can be changed by drag and drop, even if the simulation is null (the null
+            // position should be able to swapped).
+            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+                ImGui::SetDragDropPayload("DND_DEMO_CELL", &idx, sizeof(decltype(idx)));
+                ImGui::TextUnformatted("Move to here");
+                ImGui::EndDragDropSource();
+            }
+            if (ImGui::BeginDragDropTarget()) {
+                if (const auto *payload = ImGui::AcceptDragDropPayload("DND_DEMO_CELL")) {
+                    assert(payload->DataSize == sizeof(decltype(idx)));
+                    const std::size_t payload_idx = *static_cast<const std::size_t *>(payload->Data);
+                    swap(idx, payload_idx);
+                }
+                ImGui::EndDragDropTarget();
+            }
+        };
+
+        const auto [num_simulations, button_width] = [&]() -> std::pair<std::size_t, float> {
+            const float available_content_region_width = ImGui::GetContentRegionAvail().x;
+            switch (getSplitMethod()) {
+                case SimulationGridView::SplitMethod::NoSplit:
+                    return { 1, available_content_region_width };
+                case SimulationGridView::SplitMethod::HorizontalSplit:
+                    return { 2, available_content_region_width / 2.f };
+                case SimulationGridView::SplitMethod::QuadrantSplit:
+                    return { 4, available_content_region_width / 2.f };
+            }
+        }();
+        const ImVec2 button_size { button_width, button_width / getViewportAspectRatio() };
+
+        for (std::size_t idx = 0; idx < num_simulations; ++idx) {
+            if (idx % 2 == 1) {
+                ImGui::SameLine();
+            }
+
+            ImGui::ScopedId scoped_id { static_cast<int>(idx) };
+            set_button(idx, button_size);
+        }
+
+        // Add new simulation view button.
+        ImGui::ScopedDisabled scoped_disabled { notNullViewCount() >= 4 }; // max simulation count is 4.
+        if (ImGui::SmallButton("+##btn_add_new_simulation_view")) {
+            new_simulation_view_dialog.open();
+        }
+        ImGui::SetItemTooltip("Add new simulation view");
+
+        if (auto result = new_simulation_view_dialog.show(simulations)) {
+            add(std::move(*result));
+            on_layout_changed();
+        }
     }
 }
