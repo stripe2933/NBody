@@ -61,6 +61,6 @@ std::vector<NBodyExecutor::Body> BodyPreset::explosion(std::size_t num_bodies, u
     std::uniform_real_distribution mass_dis { 1.f, 10.f };
     return generate_n(num_bodies, [&]() -> NBodyExecutor::Body {
         const glm::vec3 position = dis(gen);
-        return NBodyExecutor::Body { mass_dis(gen), position, 0.1f * position };
+        return { mass_dis(gen), position, 0.1f * position };
     });
 }

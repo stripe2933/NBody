@@ -34,15 +34,18 @@ struct Colorizer{
  * \p fromSimulationData() to automatically hold this, not constructors or \p std::make_shared() .
  */
 class SimulationView final {
-protected:
+private:
     Colorizer::Type colorizer = Colorizer::Uniform {};
+
+    // Only applied for barnes-hut simulation.
     bool show_node_boxes = true;
+    glm::vec4 octtree_node_color { 0.0, 1.0, 0.0, 0.2 };
 
 public:
     static struct{
         std::unique_ptr<OpenGL::Program> pointcloud_uniform,
-                pointcloud_speed_dependent,
-                pointcloud_direction_dependent;
+                                         pointcloud_speed_dependent,
+                                         pointcloud_direction_dependent;
         std::unique_ptr<OpenGL::Program> node_box;
     } programs;
 

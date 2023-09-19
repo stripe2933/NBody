@@ -68,6 +68,8 @@ void SimulationView::draw() const{
     if (const auto barnes_hut_simulation_data = dynamic_cast<const BarnesHutSimulationData*>(valid_simulation_data.get())){
         if (show_node_boxes){
             programs.node_box->use();
+            programs.node_box->setUniform("octtree_color", octtree_node_color);
+
             glBindVertexArray(barnes_hut_simulation_data->node_box.vao);
             glDrawElementsInstanced(
                     GL_LINES,
@@ -158,7 +160,18 @@ void SimulationView::updateImGui(float time_delta) {
         }
 
         if (ImGui::TreeNode("Executor specific settings")){
-            ImGui::Checkbox("Show octtree nodes", &show_node_boxes);
+            switch (simulation_data.lock()->executor_type){
+                case ExecutorType::Naive:
+                    break;
+                case ExecutorType::BarnesHut: {
+                    ImGui::Checkbox("Show octtree nodes", &show_node_boxes);
+                    if (show_node_boxes){
+                        ImGui::ColorEdit4("Octtree node color", glm::value_ptr(octtree_node_color));
+                    }
+                    break;
+                }
+            }
+
             ImGui::TreePop();
         }
     }
