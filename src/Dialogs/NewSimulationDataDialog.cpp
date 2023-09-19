@@ -79,8 +79,6 @@ std::optional<NewSimulationDataDialog::result_t> NewSimulationDataDialog::inner(
     };
     static std::string name_hint = name_hint_generator();
 
-    bool construct_result = false;
-
     // Simulation name.
     ImGui::InputTextWithHint("Name (optional)", name_hint.c_str(), &this->options.name);
 
@@ -160,5 +158,7 @@ std::optional<NewSimulationDataDialog::result_t> NewSimulationDataDialog::inner(
 
         return closeAndPresentResult(constructResult());
     }
+    ImGui::SetItemDefaultFocus(); // For add button.
+
     return std::nullopt;
 }

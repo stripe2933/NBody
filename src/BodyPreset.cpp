@@ -6,32 +6,9 @@
 
 #include <algorithm>
 
-#include <glm/gtc/constants.hpp>
-#include <glm/gtc/random.hpp>
+#define FWD(x) std::forward<decltype(x)>(x)
 
 namespace{
-    struct BallDistribution{
-        std::uniform_real_distribution<float> dis { 0.f, 1.f };
-
-        glm::vec3 operator()(auto &gen){
-            const float longitude = std::lerp(0.f, glm::two_pi<float>(), dis(gen));
-            const float latitude = std::lerp(-glm::half_pi<float>(), glm::half_pi<float>(), dis(gen));
-            return { std::cos(latitude) * std::cos(longitude), std::cos(latitude) * std::sin(longitude), std::sin(latitude) };
-        }
-    };
-
-    struct NoiseDisk{
-        std::uniform_real_distribution<float> uniform_dis { 0.f, 1.f };
-        std::normal_distribution<float> normal_dis { 0.f, 1e-2f };
-
-        glm::vec3 operator()(auto &gen){
-            const float radius = uniform_dis(gen);
-            const float angle = glm::two_pi<float>() * uniform_dis(gen);
-            const glm::vec3 noise { normal_dis(gen), 4.f * normal_dis(gen), normal_dis(gen) };
-            return { radius * glm::vec3(std::cos(angle), 0.f, std::sin(angle)) + noise };
-        }
-    };
-
     template <typename Func>
     std::vector<std::invoke_result_t<Func>> generate_n(std::size_t n, Func &&f){
         std::vector<std::invoke_result_t<Func>> result;
@@ -43,7 +20,7 @@ namespace{
 };
 
 std::vector<NBodyExecutor::Body> BodyPreset::galaxy(std::size_t num_bodies, unsigned int seed) {
-    static NoiseDisk dis;
+    static Galaxy dis;
 
     std::mt19937 gen { seed };
     std::uniform_real_distribution mass_dis { 1.f, 10.f };
@@ -62,5 +39,19 @@ std::vector<NBodyExecutor::Body> BodyPreset::explosion(std::size_t num_bodies, u
     return generate_n(num_bodies, [&]() -> NBodyExecutor::Body {
         const glm::vec3 position = dis(gen);
         return { mass_dis(gen), position, 0.1f * position };
+    });
+}
+
+std::vector<NBodyExecutor::Body> BodyPreset::generate(std::size_t n, auto &&mass_distribution, auto &&shape_distribution){
+    return generate(n, FWD(mass_distribution), FWD(shape_distribution), rd());
+}
+
+std::vector<NBodyExecutor::Body> BodyPreset::generate(std::size_t n, auto &&mass_distribution,
+                                                      auto &&shape_distribution, unsigned int seed) {
+    std::mt19937 gen { seed };
+    return generate_n(n, [&]() -> NBodyExecutor::Body {
+        const float mass = mass_distribution(gen);
+        const auto [position, velocity] = shape_distribution(gen);
+        return { mass, position, velocity }; // Acceleration will be zero.
     });
 }

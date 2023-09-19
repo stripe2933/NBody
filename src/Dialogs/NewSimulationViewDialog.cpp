@@ -49,6 +49,7 @@ std::optional<NewSimulationViewDialog::result_t> NewSimulationViewDialog::inner(
 
             return closeAndPresentResult(result);
         }
+        ImGui::SetItemDefaultFocus(); // For add button.
     }
     return std::nullopt;
 }
