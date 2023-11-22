@@ -37,24 +37,29 @@ namespace BodyPreset{
 
     std::vector<NBodyExecutor::Body> galaxy(std::size_t num_bodies, unsigned int seed);
     std::vector<NBodyExecutor::Body> explosion(std::size_t num_bodies, unsigned int seed);
+    std::vector<NBodyExecutor::Body> galaxy_pair(
+            int num_bodies1, int num_bodies2,
+            glm::vec3 cm_position1, glm::vec3 cm_position2,
+            glm::vec3 cm_velocity1, glm::vec3 cm_velocity2,
+            unsigned int seed);
 
-    /**
-     * Generate bodies with given distribution and random seed.
-     * @param n Number of bodies to generate.
-     * @param mass_distribution Statistical distribution for mass.
-     * @param shape_distribution Statistical distribution for position and velocity of bodies.
-     * @return Random bodies with given size.
-     * @note The seed will generated with internal \p std::random_device .
-     */
-    std::vector<NBodyExecutor::Body> generate(std::size_t n, auto &&mass_distribution, auto &&shape_distribution);
-
-    /**
-     * Generate bodies with given distribution.
-     * @param n Number of bodies to generate.
-     * @param mass_distribution Statistical distribution for mass.
-     * @param shape_distribution Statistical distribution for position and velocity of bodies.
-     * @param seed Seed for random generation, would be passed to \p std::mt19937 .
-     * @return Random bodies with given size.
-     */
-    std::vector<NBodyExecutor::Body> generate(std::size_t n, auto &&mass_distribution, auto &&shape_distribution, unsigned int seed);
+//    /**
+//     * Generate bodies with given distribution and random seed.
+//     * @param n Number of bodies to generate.
+//     * @param mass_distribution Statistical distribution for mass.
+//     * @param shape_distribution Statistical distribution for position and velocity of bodies.
+//     * @return Random bodies with given size.
+//     * @note The seed will generated with internal \p std::random_device .
+//     */
+//    std::vector<NBodyExecutor::Body> generate(std::size_t n, auto &&mass_distribution, auto &&shape_distribution);
+//
+//    /**
+//     * Generate bodies with given distribution.
+//     * @param n Number of bodies to generate.
+//     * @param mass_distribution Statistical distribution for mass.
+//     * @param shape_distribution Statistical distribution for position and velocity of bodies.
+//     * @param seed Seed for random generation, would be passed to \p std::mt19937 .
+//     * @return Random bodies with given size.
+//     */
+//    std::vector<NBodyExecutor::Body> generate(std::size_t n, auto &&mass_distribution, auto &&shape_distribution, unsigned int seed);
 }

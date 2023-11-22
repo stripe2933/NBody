@@ -24,8 +24,13 @@ private:
         struct BodyPreset{
             struct Galaxy { int num_bodies; };
             struct Explosion { int num_bodies; };
+            struct GalaxyPair {
+                int num_bodies1, num_bodies2;
+                glm::vec3 cm_position1, cm_position2;
+                glm::vec3 cm_velocity1, cm_velocity2;
+            };
 
-            using Type = std::variant<std::monostate, Galaxy, Explosion>;
+            using Type = std::variant<std::monostate, Galaxy, GalaxyPair, Explosion>;
         };
 
         struct Seed{

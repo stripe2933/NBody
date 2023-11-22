@@ -11,17 +11,20 @@
 #include <NBodyExecutor/BarnesHutExecutor.hpp>
 #include <imgui_variant_selector.hpp>
 #include <visitor_helper.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "BodyPreset.hpp"
 #include "NaiveSimulationData.hpp"
 #include "BarnesHutSimulationData.hpp"
 #include "ImGui/ScopedDisabled.hpp"
+#include "ImGui/ScopedId.hpp"
 
 IMGUI_LABEL(NewSimulationDataDialog::Options::Executor::Naive, "Naive");
 IMGUI_LABEL(NewSimulationDataDialog::Options::Executor::BarnesHut, "Barnes-Hut");
 
 IMGUI_LABEL(NewSimulationDataDialog::Options::BodyPreset::Galaxy, "Galaxy");
 IMGUI_LABEL(NewSimulationDataDialog::Options::BodyPreset::Explosion, "Explosion");
+IMGUI_LABEL(NewSimulationDataDialog::Options::BodyPreset::GalaxyPair, "Galaxy pair");
 
 IMGUI_LABEL(NewSimulationDataDialog::Options::Seed::Fixed, "Fixed");
 IMGUI_LABEL(NewSimulationDataDialog::Options::Seed::Random, "Random");
@@ -45,6 +48,13 @@ NewSimulationDataDialog::result_t NewSimulationDataDialog::constructResult() {
         overload{
             [&](const Options::BodyPreset::Galaxy &galaxy){
                 return BodyPreset::galaxy(galaxy.num_bodies, seed);
+            },
+            [&](const Options::BodyPreset::GalaxyPair &galaxy_pair){
+                return BodyPreset::galaxy_pair(
+                    galaxy_pair.num_bodies1, galaxy_pair.num_bodies2,
+                    galaxy_pair.cm_position1, galaxy_pair.cm_position2,
+                    galaxy_pair.cm_velocity1, galaxy_pair.cm_velocity2,
+                    seed);
             },
             [&](const Options::BodyPreset::Explosion &explosion){
                 return BodyPreset::explosion(explosion.num_bodies, seed);
@@ -116,6 +126,32 @@ std::optional<NewSimulationDataDialog::result_t> NewSimulationDataDialog::inner(
                 },
                 [] {
                     return Options::BodyPreset::Galaxy { .num_bodies = 256 };
+                },
+            },
+            std::pair {
+                [](Options::BodyPreset::GalaxyPair &galaxy_pair) {
+                    ImGui::TextUnformatted("Galaxy 1");
+                    {
+                        ImGui::ScopedId id { 1 };
+                        ImGui::DragInt("Body count", &galaxy_pair.num_bodies1, 1.f, 1, 32768);
+                        ImGui::DragFloat3("CM position", glm::value_ptr(galaxy_pair.cm_position1));
+                        ImGui::DragFloat3("CM velocity", glm::value_ptr(galaxy_pair.cm_velocity1));
+                    }
+
+                    ImGui::TextUnformatted("Galaxy 2");
+                    {
+                        ImGui::ScopedId id { 2 };
+                        ImGui::DragInt("Body count", &galaxy_pair.num_bodies2, 1.f, 1, 32768);
+                        ImGui::DragFloat3("CM position", glm::value_ptr(galaxy_pair.cm_position2));
+                        ImGui::DragFloat3("CM velocity", glm::value_ptr(galaxy_pair.cm_velocity2));
+                    }
+                },
+                [] {
+                    return Options::BodyPreset::GalaxyPair {
+                        .num_bodies1 = 4096, .num_bodies2 = 4096,
+                        .cm_position1 = { -1.f, 0.f, 0.f }, .cm_position2 = { 1.f, 0.f, 0.f },
+                        .cm_velocity1 = { 0.f, 0.f, 0.1f }, .cm_velocity2 = { 0.f, 0.f, -0.1f }
+                    };
                 },
             },
             std::pair {
