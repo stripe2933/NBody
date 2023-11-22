@@ -59,7 +59,7 @@ private:
     DirtyProperty<PointSizeUniform> point_size_uniform { PointSizeUniform { .coefficient = 0.f, .constant = 10.f } };
 
     // OpenGL properties.
-    OpenGL::Camera camera;
+    OpenGL::PerspectiveCamera camera;
     DirtyProperty<glm::mat4> view_matrix, projection_matrix;
 
     // Simulation properties.

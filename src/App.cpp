@@ -87,15 +87,15 @@ App::App() : OpenGL::Window { initial_window_size.x, initial_window_size.y, "N-B
     // Now window have correct framebuffer size, so initialize simulation grid with correct size.
     simulation_grid.size = getFramebufferSize();
     simulation_grid.on_layout_changed = [&](){
-        projection_matrix = camera.getProjection(simulation_grid.getViewportAspectRatio());
+        projection_matrix = camera.projection.getMatrix(simulation_grid.getViewportAspectRatio());
     };
 
-    camera.addPitch(-0.2f);
-    camera.addYaw(0.2f);
-    camera.distance = 5.f;
+    camera.view.addPitch(-0.2f);
+    camera.view.addYaw(0.2f);
+    camera.view.distance = 5.f;
 
-    view_matrix = camera.getView();
-    projection_matrix = camera.getProjection(simulation_grid.getViewportAspectRatio());
+    view_matrix = camera.view.getMatrix();
+    projection_matrix = camera.projection.getMatrix(simulation_grid.getViewportAspectRatio());
 
     SimulationView::initPrograms();
 
@@ -144,7 +144,7 @@ void App::onFramebufferSizeChanged(int width, int height) {
     OpenGL::Window::onFramebufferSizeChanged(width, height);
     simulation_grid.size = { width, height };
 
-    projection_matrix = camera.getProjection(simulation_grid.getViewportAspectRatio());
+    projection_matrix = camera.projection.getMatrix(simulation_grid.getViewportAspectRatio());
 }
 
 void App::onScrollChanged(double xoffset, double yoffset) {
@@ -154,9 +154,9 @@ void App::onScrollChanged(double xoffset, double yoffset) {
         return;
     }
 
-    camera.distance = std::fmax(
-        std::exp(control.scroll_sensitivity * static_cast<float>(-yoffset)) * camera.distance,
-        camera.near_distance
+    camera.view.distance = std::fmax(
+        std::exp(control.scroll_sensitivity * static_cast<float>(-yoffset)) * camera.view.distance,
+        camera.projection.near_distance
     );
     onCameraChanged();
 }
@@ -194,15 +194,15 @@ void App::onCursorPosChanged(double xpos, double ypos) {
         const glm::vec2 offset = control.pan_sensitivity * (position - *previous_mouse_position);
         previous_mouse_position = position;
 
-        camera.addYaw(offset.x);
-        camera.addPitch(-offset.y);
+        camera.view.addYaw(offset.x);
+        camera.view.addPitch(-offset.y);
 
         onCameraChanged();
     }
 }
 
 void App::onCameraChanged() {
-    view_matrix = camera.getView();
+    view_matrix = camera.view.getMatrix();
 }
 
 void App::updateImGui(float time_delta) {

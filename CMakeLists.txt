@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.26)
 project(NBody)
 
 include(FetchContent)
@@ -13,7 +13,7 @@ FetchContent_MakeAvailable(NBodyExecutor)
 FetchContent_Declare(
     OpenGLApp
     GIT_REPOSITORY https://github.com/stripe2933/OpenGLApp.git
-    GIT_TAG 7de1780
+    GIT_TAG e1ec0a9
 )
 FetchContent_MakeAvailable(OpenGLApp)
 
